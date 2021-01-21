@@ -144,4 +144,3 @@ traitlets==4.3.3
 wrapt==1.11.2
 xlrd==1.2.0
 XlsxWriter==1.2.9
-xlwings==0.19.5
