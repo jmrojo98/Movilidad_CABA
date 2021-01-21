@@ -11,27 +11,6 @@ from dash.dependencies import Input,Output,State
 import dash_table
 import plotly.express as px
 
-
-todos=pd.read_csv('https://raw.githubusercontent.com/jmrojo98/Movilidad_CABA/main/assets/ubicacion_movilidad.csv',usecols=['lat','long','tipo'])
-colores_transporte={'subte':'red', 'bicicleta':'yellow', 'colectivo':'orange', 'tren':'blue'}
-
-mapa=folium.Map(location=[-34.613134	,-58.441113],zoom_start=10)
-Paradas_transportes=FeatureGroup(name='Paradas_transportes')
-
-
-for i in range(0,todos.shape[0]):
-  lat=todos.loc[i,'lat']
-  lon=todos.loc[i,'long']
-  color_tipo=colores_transporte[str(todos.loc[i,'tipo'])]
-  folium.CircleMarker([lat,lon],radius=2,color=color_tipo).add_to(Paradas_transportes) 
-
-
-Paradas_transportes.add_to(mapa)
-
-LayerControl().add_to(mapa)
-mapa.save('mapa_de_barrios.html')
-
-
 #App
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__,external_stylesheets=external_stylesheets)
@@ -45,10 +24,7 @@ app.layout = html.Div([
                                                {'label':'Trenes','value':'tren'},
                                                {'label':'Bicicletas','value':'bicicleta'}],
                  multi=True,value=['subte','colectivo','tren','bicicleta']),
-    html.Br(),
-    html.Div([
-              html.Iframe(id='mapa',srcDoc= open('mapa_de_barrios.html','r').read(),width='100%',height='500')
-    ],className='six columns')
+    html.Br()
   
 ])
 
@@ -57,22 +33,6 @@ app.layout = html.Div([
     [Input(component_id='drop_medios_transpote', component_property='value')]
 )
 
-def update_mapa(transporte_seleccionado):
-  todos_dash=todos.loc[todos.tipo.isin(transporte_seleccionado)]
-  todos_dash=todos_dash.reset_index()
-  m=folium.Map(location=[-34.613134	,-58.441113],zoom_start=10,min_zoom=11)
-  Paradas_transportes=FeatureGroup(name='Paradas_transportes')
-
-  for i in range(0,todos_dash.shape[0]):
-    lat=todos_dash.loc[i,'lat']
-    lon=todos_dash.loc[i,'long']
-    color_tipo=colores_transporte[str(todos_dash.loc[i,'tipo'])]
-    folium.CircleMarker([lat,lon],radius=2,color=color_tipo).add_to(Paradas_transportes) #Cada  capa necesita un ciclo para marcar todos los puntos
-
-  Paradas_transportes.add_to(m)
-  m.save('mapa_transportes.html')
-
-  return open('mapa_transportes.html','r').read()
 
 
 #Ejecutar
