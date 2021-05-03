@@ -1,14 +1,11 @@
-
 import pandas as pd
 import numpy as np
-import folium 
-from folium import FeatureGroup, LayerControl, Map, Marker
-from folium.plugins import HeatMap
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input,Output,State
 import dash_table
+import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -17,21 +14,11 @@ barrios_estaciones.drop('Unnamed: 0',axis=1,inplace=True)
 todos=pd.read_csv('https://raw.githubusercontent.com/jmrojo98/Movilidad_CABA/main/assets/ubicacion_movilidad.csv',usecols=['lat','long','tipo'])
 colores_transporte={'subte':'red', 'bicicleta':'yellow', 'colectivo':'orange', 'tren':'blue'}
 
-mapa=folium.Map(location=[-34.603722,-58.381592],zoom_start=12,min_zoom=12)
-Paradas_transportes=FeatureGroup(name='Paradas_transportes')
-
-
-for i in range(0,todos.shape[0]):
-  lat=todos.loc[i,'lat']
-  lon=todos.loc[i,'long']
-  color_tipo=colores_transporte[str(todos.loc[i,'tipo'])]
-  folium.CircleMarker([lat,lon],radius=2,color=color_tipo).add_to(Paradas_transportes) 
-
-
-Paradas_transportes.add_to(mapa)
-
-LayerControl().add_to(mapa)
-mapa.save('mapa_de_barrios.html')
+colors = {
+    'background': '#808080',
+    'text': '#F8F8FF'
+}
+stylex={'color': colors['text'],'background-color':colors['background']}
 
 fig = px.bar(barrios_estaciones, y="barrio", x=["colectivos","subte","trenes","bicis"], title="Wide-Form Input")
 
@@ -40,7 +27,12 @@ fig = px.bar(barrios_estaciones, y="barrio", x=["colectivos","subte","trenes","b
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(external_stylesheets=external_stylesheets)
 
-
+theme =  {
+    'dark': True,
+    'detail': '#007439',
+    'primary': '#00EA64',
+    'secondary': '#6E6E6E',
+}
 
 #Layout
 app.layout = html.Div([
@@ -48,25 +40,31 @@ app.layout = html.Div([
     html.P('Accesibilidad por barrio analizando paradas de transportes publicos: Subte - Tren - Colectivo - EcoBicis'),
     dcc.Tabs([
         dcc.Tab(id='Tab1', label='Mapa de paradas',  children=[
+            
             html.Div([
+                      html.Br(),
+                      html.H3('Medios de transporte',style={'text-align':'left'}),
                       dcc.Dropdown(id='drop_medios_transpote',options=[{'label':'Subtes','value':'subte'},
                                                {'label':'Colectivos','value':'colectivo'},
                                                {'label':'Trenes','value':'tren'},
                                                {'label':'Bicicletas','value':'bicicleta'}],
                                    multi=True,value=['subte','colectivo','tren','bicicleta']),
+                      
+                      html.H3('Tipo de Mapa',style={'text-align':'left'}),
                       dcc.RadioItems(id='radio_1', #punto para marcar
                 options=[
                     {'label':'Scatter','value':'scatter'},
                     {'label':'Heat','value':'heat'}]
                  ,value= 'scatter' #valor por defecto
-                 ),  
-    html.Br(),
+                 )
+            ],className="three columns"),  
+
     html.Div([
-              html.Iframe(id='mapa',srcDoc= open('mapa_de_barrios.html','r').read(),width='100%',height='500'),
+              dcc.Graph(id='mapbox',config={'displayModeBar':False})
               
-    ])
+    ],className="nine columns")
                     ])
-                ]),
+                ,
         dcc.Tab(id='Tab2', label='Paradas por barrio',  children=[
             html.Div([
                       dcc.Graph(figure=fig,)
@@ -75,40 +73,38 @@ app.layout = html.Div([
             ])
 ])
 
+                          
+
+
 @app.callback(
-    Output(component_id='mapa', component_property='srcDoc'),
-    [Input(component_id='drop_medios_transpote', component_property='value'),
-     Input(component_id='radio_1', component_property='value')]
+    Output(component_id='mapbox', component_property='figure'),
+    [Input(component_id='drop_medios_transpote', component_property='value')]
 )
 
-def update_mapa(transporte_seleccionado,mapa_seleccionado):
+def update_mapa(transporte_seleccionado):
 
   todos_dash=todos.loc[todos.tipo.isin(transporte_seleccionado)]
   todos_dash=todos_dash.reset_index()
-
-  if mapa_seleccionado == 'heat':
-    heat=folium.Map(location=[-34.603722,-58.381592],zoom_start=12,min_zoom=12)
-    Heatmap=FeatureGroup(name='Heatmap')
-    HeatMap(data=todos_dash[['lat', 'long']].groupby(['lat', 'long']).sum().reset_index().values.tolist(), radius=15, max_val=50,).add_to(Heatmap)
-    Heatmap.add_to(heat)
-    LayerControl().add_to(heat)
     
-    heat.save('mapa_de_barrios.html')
+  mapa=px.scatter_mapbox(todos,
+                    lat='lat',
+                    lon='long',  
+                    mapbox_style='open-street-map',
+                        zoom=11,width=950, height=650)
+  mapa=px.scatter_mapbox(todos_dash,
+                    lat='lat',
+                    lon='long',  
+                    mapbox_style='open-street-map',
+                    color_discrete_map=colores_transporte,
+                    color='tipo',
+                  
+                    zoom=11,
+                    width=950, 
+                    height=650).update_yaxes(automargin=True)
 
-  else:
-    m=folium.Map(location=[-34.603722,-58.381592],zoom_start=12,min_zoom=12)
-    Subtes=FeatureGroup(name='Subtes')
+#.update_layout(template='plotly_dark')
 
-    for i in range(0,todos_dash.shape[0]):
-      lat=todos_dash.loc[i,'lat']
-      lon=todos_dash.loc[i,'long']
-      color_tipo=colores_transporte[str(todos_dash.loc[i,'tipo'])]
-      folium.CircleMarker([lat,lon],radius=2,color=color_tipo).add_to(Subtes) #Cada  capa necesita un ciclo para marcar todos los puntos
-
-    Subtes.add_to(m)
-    m.save('mapa_de_barrios.html')
-
-  return open('mapa_de_barrios.html','r').read()
+  return mapa
 
 
 #Ejecutar
